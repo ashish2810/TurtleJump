@@ -60,7 +60,10 @@ class Agent:
             for c in xrange(len(state[0])):
                 if state[r][c]==player:
                     noOfPawn+=1
-        return noOfPawn+self.captures(state,player)
+        value=noOfPawn+self.captures(state,player)
+        if playerType==PLAYER_MIN:
+            value=-value
+        return value
     
     def captures(self,state,r,c,player):
         pos=npa([r,c])
