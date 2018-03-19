@@ -5,6 +5,7 @@ from copy import deepcopy
 
 PLAYER_MAX="MAX"
 PLAYER_MIN="MIN"
+inf:int=1000000000
 
 MOVES=[npa([-1,0]),npa([1,0]),npa([0,-1]),npa([0,1])]
 
@@ -41,10 +42,28 @@ class Agent:
                                     yield((r,c),(nr,nc))
 
 
-    def MiniMax(self,state:List[List[int]],player:int,playerType:str,depth=1,alpha:int=-1000000000,beta:int=1000000000)->float:
-        
-        pass
+    def MiniMax(self,state:List[List[int]],player:int,playerType:str,depth=1,alpha:int=-inf,beta:int=inf)->float:
+        if playerType==PLAYER_MAX:
+            return self.Max(state,player,depth,alpha,beta)
+        else:
+            return self.Min(state,player,depth,alpha,beta)
 
     def eval(self,state,player:int,playerType:str)->float:
         pass
+
+    def Max(self,state:List[List[int]],player:int,depth=1,alpha:int=-inf,beta:int=inf)->float:
+        for moves in self.legalMoves(state,player):
+            v=self.MiniMax(self.nextState(state,move),-player,depth+1,alpha,beta)
+            if v>beta:
+                return -inf
+            alpha=max(v,alpha)
+        return v
+    def Min(self,state:List[List[int]],player:int,depth=1,alpha:int=-inf,beta:int=inf)->float:
+        for moves in self.legalMoves(state,player):
+            v=self.MiniMax(self.nextState(state,move),-player,depth+1,alpha,beta)
+            if v<alpha:
+                return inf
+            beta=min(v,alpha)
+        return v
+
 
