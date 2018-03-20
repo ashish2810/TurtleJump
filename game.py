@@ -7,6 +7,10 @@ from six.moves import xrange
 from numpy import array as npa
 import numpy as np
 import sys
+from agent import Agent
+
+rows=9
+cols=8
 
 class GameButton(QPushButton):
     def __init__(self,parent:'Game',r,c):
@@ -18,11 +22,13 @@ class GameButton(QPushButton):
         
         
     def move(self):
+        if not self.game.takeInput:
+            return
         if self.game.cr==-1 and self.game.cc==-1:
             if self.game.state[self.r][self.c]==self.game.player:
                 self.game.cr=self.r
                 self.game.cc=self.c
-                self.game.statusBar.showMessage("")
+                self.game.turnStatus()
             else:
                 self.game.statusBar.showMessage("Invalid Choice")
         else:
@@ -49,6 +55,7 @@ class Game(QMainWindow):
     AI_MODE="ai"
     HUMAN_MODE="human"
     HUMAN_HUMAN_MODE="human_human"
+    playerToColor={1:"Red",-1:"Blue"}
     def __init__(self,mode:str):
         super().__init__()
         self.state=np.full((9,8),0)
@@ -59,7 +66,16 @@ class Game(QMainWindow):
         self.player=1
         if randint(0,1)==0:
             self.player=-1
+        self.takeInput=True
+        if mode==Game.AI_MODE or mode==Game.HUMAN_MODE and self.player==1:
+            self.takeInput=False
+        self.ai_agent=None
+        print(self.mode)
+        if not(self.mode==Game.HUMAN_HUMAN_MODE):
+            self.ai_agent=Agent(9,8)
         self.initUI()
+
+            
     
     def initUI(self):
         grid=QGridLayout()
@@ -67,7 +83,7 @@ class Game(QMainWindow):
         self.mainW.setLayout(grid)
         self.setCentralWidget(self.mainW)
         self.statusBar:QStatusBar=self.statusBar()
-        self.statusBar.showMessage(str(self.player))
+        self.turnStatus()
         windowTitle="Tutle Jump - "
         if self.mode==Game.HUMAN_MODE:
             windowTitle+="AI vs Human"
@@ -96,6 +112,9 @@ class Game(QMainWindow):
         self.move(0,0)
         self.setWindowTitle(windowTitle)
         self.show()
+        if self.player==1 and self.mode!=Game.HUMAN_HUMAN_MODE:
+            move=self.ai_agent.play(self.state,self.player)
+            self.makeMove(move[0],move[1])
 
     def moveLegal(self,cur:Tuple,fut:Tuple)->bool:
         if self.state[cur[0]][cur[1]]!=self.player:
@@ -129,9 +148,29 @@ class Game(QMainWindow):
             print(my,mx,cur[0],cur[1])
             self.blocks[my][mx].setIcon(QIcon("images/player"+str(self.player)+".png"))
             self.state[my][mx]=self.player
-        
-        self.player=-self.player
+        if self.won():
+            self.statusBar.showMessage(Game.playerToColor[self.player]+" Player WON")
+        else:
+            self.player=-self.player
+            if self.mode==Game.HUMAN_MODE:
+                self.takeInput=not self.takeInput
+            self.turnStatus()
+            if self.mode!=Game.HUMAN_HUMAN_MODE and self.player==1:
+                move=self.ai_agent.play(self.state,self.player)
+                self.makeMove(move[0],move[1])
+            print("\n\n\n\n")
 
+    def won(self):
+        w=True
+        for r in xrange(rows):
+            for c in xrange(cols):
+                if self.state[r][c]==-self.player:
+                    w=False
+                    break
+        return w
+
+    def turnStatus(self):
+        self.statusBar.showMessage(Game.playerToColor[self.player]+" Player Turn")
 
 class GameOptions(QWidget):
     def __init__(self):

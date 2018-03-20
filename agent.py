@@ -2,60 +2,74 @@ from typing import List
 import numpy as np
 from numpy import array as npa
 from copy import deepcopy
+from six.moves import xrange
 
 PLAYER_MAX="MAX"
 PLAYER_MIN="MIN"
-rows=9
-cols=8
 inf:int=1000000000
-LIMIT_DEPTH=6
+LIMIT_DEPTH=4
 
 MOVES=[npa([-1,0]),npa([1,0]),npa([0,-1]),npa([0,1])]
 
 class Agent:
+    def __init__(self,rows,cols):
+        self.rows=rows
+        self.cols=cols
+
     def play(self,state:List[List[int]],player:int):
         moves=[move for move in self.legalMoves(state,player)]
         nextStatesPts=npa([self.MiniMax(self.nextState(state,move),-player,PLAYER_MIN) for move in moves])
+        for i in xrange(len(nextStatesPts)):
+            print(moves[i],nextStatesPts[i])
         nextMove=moves[np.argmax(nextStatesPts)]
-        return self.nextState(self,state,nextMove)
+        return nextMove
         
-    def nextState(state:List[List[int]],move)->List[List[int]]:
+    def nextState(self,state:List[List[int]],move)->List[List[int]]:
         nextSte=deepcopy(state)
-        nextSte[move[1][0]][move[1][1]]=nextSte[move[0][0]][move[0][1]]
-        nextSte[move[0][0]][move[0][1]]=0
+        r,c=move[0][0],move[0][1]
+        nr,nc=move[1][0],move[1][1]
+        mr,mc=(r+nr)//2,(c+nc)//2
+        nextSte[nr][nc]=nextSte[r][c]
+        if mr!=r or mc!=c:
+            nextSte[mr][mc]=nextSte[r][c]
+        nextSte[r][c]=0
+
         return nextSte
 
          
     def legalMoves(self,state:List[List[int]],player:int):
-        row,col=len(state),len(state[0])
-        for r in row:
-            for c in col:
+        for r in xrange(self.rows):
+            for c in xrange(self.cols):
                 if state[r][c]==player:
                     pos=npa([r,c])
                     for move in MOVES:
                         nexPos=pos+move
                         nr,nc=nexPos[0],nexPos[1]
-                        if nr<row and nr>=0 and nc<col and nc>=0:
+                        if self.posValid(nr,nc):
                             if state[nr][nc]==0:
+                                if r==2 and c==0:
+                                    print("nocap",r,c,nr,nc,state[nr][nc])
                                 yield ((r,c),(nr,nc))
-                            else if state[nr][nc]==-player:
+                            elif state[nr][nc]==-player:
                                 nexPos+=move
-                                nr,nc=nextPos[0],nextPos[1]
-                                if state[nr][nc]==0:
-                                    yield ((r,c),(nr,nc))
+                                nr,nc=nexPos[0],nexPos[1]
+                                if(self.posValid(nr,nc)):
+                                    if r==2 and c==0:
+                                        print("cap",r,c,nr,nc,state[nr][nc])
+                                    if state[nr][nc]==0:
+                                        yield ((r,c),(nr,nc))
 
 
     def MiniMax(self,state:List[List[int]],player:int,playerType:str,depth=1,alpha:int=-inf,beta:int=inf)->float:
         if depth==LIMIT_DEPTH:
             return self.eval(state,player,playerType)
         if playerType==PLAYER_MAX:
-            return self.Max(state,player,depth,alpha,beta)
+            return self.Max(state,player,depth+1,alpha,beta)
         else:
-            return self.Min(state,player,depth,alpha,beta)
+            return self.Min(state,player,depth+1,alpha,beta)
 
     def eval(self,state:List[List[int]],player:int,playerType:str)->float:
         noOfPawn=0
-        noOfCaptures=0
         for r in xrange(len(state)):
             for c in xrange(len(state[0])):
                 if state[r][c]==player:
@@ -65,8 +79,7 @@ class Agent:
             value=-value
         return value
     
-    def captures(self,state,r,c,player):
-        pos=npa([r,c])
+    def captures(self,state,player):
         capt=0
         for r in xrange(len(state)):
             for c in xrange(len(state[0])):
@@ -93,23 +106,34 @@ class Agent:
     def Max(self,state:List[List[int]],player:int,depth=1,alpha:int=-inf,beta:int=inf)->float:
         if depth==LIMIT_DEPTH:
             return self.eval(state,player,PLAYER_MAX)
-        for moves in self.legalMoves(state,player):
-            v=self.MiniMax(self.nextState(state,move),-player,depth+1,alpha,beta)
+        v=-inf
+        for move in self.legalMoves(state,player):
+            v=max(v,self.Min(self.nextState(state,move),-player,depth+1,alpha,beta))
+            #if depth==1:
+                #print("Max",move,v,alpha,beta)
             if v>beta:
-                return -inf
+                return inf
             alpha=max(v,alpha)
         return v
 
     def Min(self,state:List[List[int]],player:int,depth=1,alpha:int=-inf,beta:int=inf)->float:
+        #print("place 1 "+str(depth))
         if depth==LIMIT_DEPTH:
-            return self.eval(state,player,PLAYER_MAX)
-        for moves in self.legalMoves(state,player):
-            v=self.MiniMax(self.nextState(state,move),-player,depth+1,alpha,beta)
+            return self.eval(state,player,PLAYER_MIN)
+        #print("place 2")
+        v=inf
+        for move in self.legalMoves(state,player):
+            v=min(v,self.Max(self.nextState(state,move),-player,depth+1,alpha,beta))
+            #if depth==1:
+                #print("Min",move,v,alpha,beta)
+            print("place 3 ",v,alpha,beta,depth)
             if v<alpha:
-                return inf
+                return -inf
+            #print("place 4")
             beta=min(v,alpha)
+            #print("place 5")
         return v
 
     def posValid(self,r,c):
-        return r<rows and r>=0 and c<cols and c>=0
+        return r<self.rows and r>=0 and c<self.cols and c>=0
 
