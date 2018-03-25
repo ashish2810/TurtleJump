@@ -7,7 +7,8 @@ from six.moves import xrange
 from numpy import array as npa
 import numpy as np
 import sys
-from agent import Agent
+from threading import Timer
+from agent import Agent,RandomAgent
 
 rows=9
 cols=8
@@ -23,6 +24,12 @@ class GameButton(QPushButton):
         
     def move(self):
         if not self.game.takeInput:
+            return
+        if self.game.mode==Game.AI_MODE:
+            print("Playing")
+            move=self.game.random_agent.play(self.game.state,self.game.player)
+            self.game.makeMove(move[0],move[1])
+            print("Played")
             return
         if self.game.cr==-1 and self.game.cc==-1:
             if self.game.state[self.r][self.c]==self.game.player:
@@ -58,8 +65,8 @@ class Game(QMainWindow):
     playerToColor={1:"Red",-1:"Blue"}
     def __init__(self,mode:str):
         super().__init__()
-        self.state=np.full((9,8),0)
-        self.blocks=np.full((9,8),None)
+        self.state=np.full((rows,cols),0)
+        self.blocks=np.full((rows,cols),None)
         self.cr=-1
         self.cc=-1
         self.mode=mode
@@ -67,12 +74,17 @@ class Game(QMainWindow):
         if randint(0,1)==0:
             self.player=-1
         self.takeInput=True
-        if mode==Game.AI_MODE or mode==Game.HUMAN_MODE and self.player==1:
+        if mode==Game.HUMAN_MODE and self.player==1:
             self.takeInput=False
         self.ai_agent=None
-        print(self.mode)
+        self.random_agent=None
+        #print(self.mode)
         if not(self.mode==Game.HUMAN_HUMAN_MODE):
-            self.ai_agent=Agent(9,8)
+            self.ai_agent=Agent(rows,cols)
+        if self.mode==Game.AI_MODE:
+            print("init")
+            self.random_agent=RandomAgent(rows,cols)
+            print("inited")
         self.initUI()
 
             
@@ -92,15 +104,15 @@ class Game(QMainWindow):
         else:
             windowTitle+="Human vs Human"
 
-        for r in xrange(9):
-            for c in xrange(8):
+        for r in xrange(rows):
+            for c in xrange(cols):
                 block=GameButton(self,r,c)
                 block.setFixedSize(80,80)
                 if r<=1:
                     img=QIcon("images/player1.png")
                     block.setIcon(img)
                     self.state[r][c]=1
-                elif r>=7:
+                elif r>=rows-2:
                     img=QIcon("images/player-1.png")
                     block.setIcon(img)
                     self.state[r][c]=-1
@@ -121,12 +133,12 @@ class Game(QMainWindow):
             return False
         y=abs(fut[0]-cur[0])
         x=abs(fut[1]-cur[1])
-        if (y==1 and x==0) or (y==0 and x==1):
+        if (y==1 and x==1) or (y==0 and x==1) or (y==1 and x==0):
             if self.state[fut[0]][fut[1]]==0:
                 return True
             else:
                 return False
-        elif (y==2 and x==0) or (y==0 and x==2):
+        elif (y==2 and x==2) or (y==0 and x==2) or (y==2 and x==0):
             my=(cur[0]+fut[0])//2
             mx=(cur[1]+fut[1])//2
             if self.state[my][mx]==-self.player and self.state[fut[0]][fut[1]]==0:
@@ -143,22 +155,23 @@ class Game(QMainWindow):
         self.blocks[fut[0]][fut[1]].setIcon(QIcon("images/player"+str(self.player)+".png"))
         self.state[fut[0]][fut[1]]=self.player
 
-        my,mx=((cur[0]+fut[0])//2),((cur[1]+fut[1])//2)
-        if my!=cur[0] or mx!=cur[1]:
-            print(my,mx,cur[0],cur[1])
+        y,x=abs(cur[0]-fut[0]),abs(cur[1]-fut[1])
+        if y==2 or x==2:
+            #print(my,mx,cur[0],cur[1])
+            my,mx=(cur[0]+fut[0])//2,(cur[1]+fut[1])//2
             self.blocks[my][mx].setIcon(QIcon("images/player"+str(self.player)+".png"))
             self.state[my][mx]=self.player
         if self.won():
             self.statusBar.showMessage(Game.playerToColor[self.player]+" Player WON")
         else:
             self.player=-self.player
-            if self.mode==Game.HUMAN_MODE:
+            if self.mode!=Game.HUMAN_HUMAN_MODE:
                 self.takeInput=not self.takeInput
             self.turnStatus()
+            print(self.player,self.mode)
             if self.mode!=Game.HUMAN_HUMAN_MODE and self.player==1:
                 move=self.ai_agent.play(self.state,self.player)
                 self.makeMove(move[0],move[1])
-            print("\n\n\n\n")
 
     def won(self):
         w=True

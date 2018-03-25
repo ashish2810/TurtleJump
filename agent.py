@@ -3,13 +3,14 @@ import numpy as np
 from numpy import array as npa
 from copy import deepcopy
 from six.moves import xrange
+from random import randint
 
 PLAYER_MAX="MAX"
 PLAYER_MIN="MIN"
 inf:int=1000000000
-LIMIT_DEPTH=4
+LIMIT_DEPTH=3
 
-MOVES=[npa([-1,0]),npa([1,0]),npa([0,-1]),npa([0,1])]
+MOVES=[npa([-1,0]),npa([1,0]),npa([0,-1]),npa([0,1]),npa([-1,-1]),npa([1,1]),npa([1,-1]),npa([-1,1])]
 
 class Agent:
     def __init__(self,rows,cols):
@@ -18,10 +19,14 @@ class Agent:
 
     def play(self,state:List[List[int]],player:int):
         moves=[move for move in self.legalMoves(state,player)]
+
         nextStatesPts=npa([self.MiniMax(self.nextState(state,move),-player,PLAYER_MIN) for move in moves])
-        for i in xrange(len(nextStatesPts)):
-            print(moves[i],nextStatesPts[i])
-        nextMove=moves[np.argmax(nextStatesPts)]
+        # for i in xrange(len(nextStatesPts)):
+        #     print(moves[i],nextStatesPts[i])
+        maxx=np.amax(nextStatesPts)
+        nextMoves=np.argwhere(nextStatesPts==maxx).flatten().tolist()
+        nextMove=moves[nextMoves[randint(0,len(nextMoves)-1)]]
+        #print(nextMove)
         return nextMove
         
     def nextState(self,state:List[List[int]],move)->List[List[int]]:
@@ -47,18 +52,40 @@ class Agent:
                         nr,nc=nexPos[0],nexPos[1]
                         if self.posValid(nr,nc):
                             if state[nr][nc]==0:
-                                if r==2 and c==0:
-                                    print("nocap",r,c,nr,nc,state[nr][nc])
                                 yield ((r,c),(nr,nc))
                             elif state[nr][nc]==-player:
                                 nexPos+=move
                                 nr,nc=nexPos[0],nexPos[1]
                                 if(self.posValid(nr,nc)):
-                                    if r==2 and c==0:
-                                        print("cap",r,c,nr,nc,state[nr][nc])
                                     if state[nr][nc]==0:
                                         yield ((r,c),(nr,nc))
-
+        # y=0
+        # ret=[]
+        # for r in xrange(self.rows):
+        #     for c in xrange(self.cols):
+        #         if state[r][c]==player:
+        #             pos=npa([r,c])
+        #             for move in MOVES:
+        #                 nexPos=pos+move
+        #                 nr,nc=nexPos[0],nexPos[1]
+        #                 if self.posValid(nr,nc):
+        #                     if state[nr][nc]==0:
+        #                         # if r==2 and c==0:
+        #                         #     print("nocap",r,c,nr,nc,state[nr][nc])
+        #                         #print(y)
+        #                         y+=1
+        #                         ret.append(((r,c),(nr,nc)))
+        #                     elif state[nr][nc]==-player:
+        #                         nexPos+=move
+        #                         nr,nc=nexPos[0],nexPos[1]
+        #                         if(self.posValid(nr,nc)):
+        #                             # if r==2 and c==0:
+        #                             #     print("cap",r,c,nr,nc,state[nr][nc])
+        #                             if state[nr][nc]==0:
+        #                                 #print(y)
+        #                                 y+=1
+        #                                 ret.append(((r,c),(nr,nc)))
+        # return ret
 
     def MiniMax(self,state:List[List[int]],player:int,playerType:str,depth=1,alpha:int=-inf,beta:int=inf)->float:
         if depth==LIMIT_DEPTH:
@@ -99,10 +126,6 @@ class Agent:
                         capt+=0.75
         return capt
 
-                    
-
-        
-
     def Max(self,state:List[List[int]],player:int,depth=1,alpha:int=-inf,beta:int=inf)->float:
         if depth==LIMIT_DEPTH:
             return self.eval(state,player,PLAYER_MAX)
@@ -112,6 +135,7 @@ class Agent:
             #if depth==1:
                 #print("Max",move,v,alpha,beta)
             if v>beta:
+                #print("pruning")
                 return inf
             alpha=max(v,alpha)
         return v
@@ -126,14 +150,44 @@ class Agent:
             v=min(v,self.Max(self.nextState(state,move),-player,depth+1,alpha,beta))
             #if depth==1:
                 #print("Min",move,v,alpha,beta)
-            print("place 3 ",v,alpha,beta,depth)
+            # print("place 3 ",v,alpha,beta,depth)
             if v<alpha:
+                #print("pruning")
                 return -inf
             #print("place 4")
-            beta=min(v,alpha)
+            beta=min(v,beta)
             #print("place 5")
         return v
 
     def posValid(self,r,c):
         return r<self.rows and r>=0 and c<self.cols and c>=0
 
+class RandomAgent:
+    def __init__(self,rows,cols):
+        self.rows=rows
+        self.cols=cols
+
+    def play(self,state:List[List[int]],player:int):
+        moves=[move for move in self.legalMoves(state,player)]
+        nextMove=moves[randint(0,len(moves)-1)]
+        return nextMove
+        
+    def legalMoves(self,state:List[List[int]],player:int):
+        for r in xrange(self.rows):
+            for c in xrange(self.cols):
+                if state[r][c]==player:
+                    pos=npa([r,c])
+                    for move in MOVES:
+                        nexPos=pos+move
+                        nr,nc=nexPos[0],nexPos[1]
+                        if self.posValid(nr,nc):
+                            if state[nr][nc]==0:
+                                yield ((r,c),(nr,nc))
+                            elif state[nr][nc]==-player:
+                                nexPos+=move
+                                nr,nc=nexPos[0],nexPos[1]
+                                if(self.posValid(nr,nc)):
+                                    if state[nr][nc]==0:
+                                        yield ((r,c),(nr,nc))
+    def posValid(self,r,c):
+        return r<self.rows and r>=0 and c<self.cols and c>=0
